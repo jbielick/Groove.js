@@ -1,0 +1,3 @@
+class Legato
+  constrcutor: (src) ->
+    
