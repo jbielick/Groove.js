@@ -1,8 +1,11 @@
-var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+var __hasProp = {}.hasOwnProperty,
+  __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
 (function(root) {
-  var Deferred, Legato, Node, Promise;
+  var Deferred, Legato;
   Legato = (function() {
+    var Node;
+
     function Legato(options) {
       if (options == null) {
         options = {
@@ -33,10 +36,104 @@ var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments)
       return new Deferred;
     };
 
+    Node = (function() {
+      function Node(context, src) {
+        this.context = context;
+        this.src = src;
+        this.nodes = [];
+        this.effects = [];
+      }
+
+      Node.prototype._effectMappings = {
+        reverb: {
+          method: 'createConvolver'
+        },
+        lowpass: {
+          method: 'createBiquadFilter'
+        },
+        pan: {
+          method: 'createPanner'
+        },
+        gain: {
+          method: 'createGain'
+        },
+        compressor: {
+          method: 'createDynamicsCompressor'
+        }
+      };
+
+      Node.prototype.load = function(src) {
+        var deferred, xhr;
+        deferred = new Deferred;
+        this.ready = false;
+        xhr = new root.XMLHttpRequest();
+        xhr.open('GET', src, true);
+        xhr.responseType = 'arraybuffer';
+        xhr.onload = (function(_this) {
+          return function(e) {
+            return _this.context.decodeAudioData(xhr.response, function(buffer) {
+              _this.buffer = buffer;
+              _this.ready = true;
+              return deferred.resolve(_this);
+            });
+          };
+        })(this);
+        xhr.send();
+        return deferred.promise;
+      };
+
+      Node.prototype.play = function(delay) {
+        var rendered, sound;
+        if (delay == null) {
+          delay = 0;
+        }
+        if (!this.ready) {
+          throw new Error("Buffer hasn't loaded yet.");
+        }
+        sound = this.context.createBufferSource();
+        sound.buffer = this.buffer;
+        rendered = this.renderEffects(sound);
+        rendered.connect(this.context.destination);
+        return sound.start(delay);
+      };
+
+      Node.prototype.addEffect = function(type, params) {
+        var node;
+        if (!this._effectMappings[type]) {
+          throw new Error("Unknown effect: " + type);
+        }
+        if (!this.context[this._effectMappings[type].method]) {
+          throw new Error("'" + type + "' not implemented for " + this.context);
+        }
+        node = this.context[this._effectMappings[type].method]();
+        this.effects[type] = node;
+        this.nodes << node;
+        return this;
+      };
+
+      Node.prototype.renderEffects = function(sound) {
+        var currentNode, effectNode, effectNodeName, _ref;
+        currentNode = sound;
+        _ref = this.effects;
+        for (effectNodeName in _ref) {
+          if (!__hasProp.call(_ref, effectNodeName)) continue;
+          effectNode = _ref[effectNodeName];
+          currentNode.connect(effectNode);
+          currentNode = effectNode;
+        }
+        return currentNode;
+      };
+
+      return Node;
+
+    })();
+
     return Legato;
 
   })();
   Deferred = (function() {
+    var Promise;
+
     function Deferred() {
       this.thens = [];
       this.catches = [];
@@ -78,95 +175,40 @@ var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments)
       return _results;
     };
 
+    Promise = (function() {
+      function Promise(deferred) {
+        this.deferred = deferred;
+        this["finally"] = __bind(this["finally"], this);
+        this["catch"] = __bind(this["catch"], this);
+        this.then = __bind(this.then, this);
+      }
+
+      Promise.prototype.then = function(cb) {
+        this.deferred.thens.push(cb);
+        if (this.deferred.resolved) {
+          return cb.apply(this.deferred, this.deferred.resolved);
+        }
+      };
+
+      Promise.prototype["catch"] = function(cb) {
+        this.deferredcatches.push(cb);
+        if (this.deferred.rejected) {
+          return cb.apply(this.deferred, this.deferred.rejected);
+        }
+      };
+
+      Promise.prototype["finally"] = function(cb) {
+        this.deferred.finallys.push(cb);
+        if (this.deferred.resolved || this.deferred.rejected) {
+          return cb.apply(this.deferred, this.deferred.resolved || this.deferred.rejected);
+        }
+      };
+
+      return Promise;
+
+    })();
+
     return Deferred;
-
-  })();
-  Promise = (function() {
-    function Promise(deferred) {
-      this.deferred = deferred;
-      this["finally"] = __bind(this["finally"], this);
-      this["catch"] = __bind(this["catch"], this);
-      this.then = __bind(this.then, this);
-    }
-
-    Promise.prototype.then = function(cb) {
-      this.deferred.thens.push(cb);
-      if (this.deferred.resolved) {
-        return cb.apply(this.deferred, this.deferred.resolved);
-      }
-    };
-
-    Promise.prototype["catch"] = function(cb) {
-      this.deferredcatches.push(cb);
-      if (this.deferred.rejected) {
-        return cb.apply(this.deferred, this.deferred.rejected);
-      }
-    };
-
-    Promise.prototype["finally"] = function(cb) {
-      this.deferred.finallys.push(cb);
-      if (this.deferred.resolved || this.deferred.rejected) {
-        return cb.apply(this.deferred, this.deferred.resolved || this.deferred.rejected);
-      }
-    };
-
-    return Promise;
-
-  })();
-  Node = (function() {
-    function Node(context, src) {
-      this.context = context;
-      this.src = src;
-    }
-
-    Node.prototype.load = function(src) {
-      var deferred, xhr;
-      deferred = new Deferred;
-      this.ready = false;
-      xhr = new root.XMLHttpRequest();
-      xhr.open('GET', src, true);
-      xhr.responseType = 'arraybuffer';
-      xhr.onload = (function(_this) {
-        return function(e) {
-          return _this.context.decodeAudioData(xhr.response, function(buffer) {
-            _this.buffer = buffer;
-            _this.ready = true;
-            return deferred.resolve(_this);
-          });
-        };
-      })(this);
-      xhr.send();
-      console.log(deferred.promise);
-      return deferred.promise;
-    };
-
-    Node.prototype.play = function(delay) {
-      var sound;
-      if (delay == null) {
-        delay = 0;
-      }
-      if (!this.ready) {
-        throw new Error("You cannot play the node until the buffer has loaded.");
-      }
-      sound = this.context.createBufferSource();
-      sound.buffer = this.buffer;
-      this.renderEffects(sound);
-      return sound.start(0);
-    };
-
-    Node.prototype.renderEffects = function(sound) {
-      var gainNode, lowpass, panner;
-      lowpass = this.context.createBiquadFilter();
-      panner = this.context.createPanner();
-      gainNode = this.context.createGain();
-      gainNode.gain.units = 8;
-      sound.connect(lowpass);
-      lowpass.connect(panner);
-      panner.connect(gainNode);
-      return lowpass.connect(this.context.destination);
-    };
-
-    return Node;
 
   })();
   if ((typeof module !== "undefined" && module !== null) && typeof module === 'object') {
