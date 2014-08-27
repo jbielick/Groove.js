@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title></title>
+</head>
+<body>
+  <h1>sandbox</h1>
+  <script src="../src/legato.js"></script>
+  <script type="text/javascript">
+    var l = new Legato();
+    l.createNode('../src/hat.wav').then(function(node) {
+      node.play()
+    });
+  </script>
+</body>
+</html>
