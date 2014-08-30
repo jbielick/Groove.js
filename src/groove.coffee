@@ -1,25 +1,26 @@
 do (root = this) ->
 
-
-  class Legato
+  class Groove
     constructor: (options = {sampleRate: 48000}) ->
       { @sampleRate } = options
       @context = @getAudioContext()
 
     getAudioContext: ->
-      new root.webkitAudioContext?() || new root.AudioContext?()
+      return new root.webkitAudioContext() if root.webkitAudioContext
+      return new root.AudioContext() if root.AudioContext
+      throw new Error('No Audio Context Support')
 
     createNode: (src) ->
       if src
         node = new Node @context, src
         node.load src
-      else  
+      else
         new Node @context
 
     connectNode: (node) ->
 
     @defer: ->
-      return new Deferred
+      return new Deferred()
 
     class Node
       constructor: (@context, @src) ->
@@ -37,7 +38,7 @@ do (root = this) ->
         compressor:
           method: 'createDynamicsCompressor'
       load: (src) ->
-        deferred = new Deferred
+        deferred = new Deferred()
         @ready = false
         xhr = new root.XMLHttpRequest()
         xhr.open 'GET', src, true
@@ -117,8 +118,8 @@ do (root = this) ->
           cb.apply(@deferred, @deferred.resolved or @deferred.rejected)
 
 
-  if module? and typeof module is 'object'
-    module.exports = Legato
-  else if define? and typeof define is 'function'
-    define 'Legato', [], Legato
-  root.Legato = Legato
+  if module? and typeof moule is 'object'
+    module.exports = Groove
+  else if define?and typeof dfine is 'function'
+    define 'Groove', [], Groove
+  root.Groove = Groove

@@ -2,12 +2,16 @@ var gulp = require('gulp'),
     coffee = require('gulp-coffee'),
     mocha = require('gulp-spawn-mocha'),
     connect = require('gulp-connect'),
-    uglify = require('gulp-uglify');
+    uglify = require('gulp-uglify'),
+    karma = require('karma').server,
+    runner = require('karma').runner,
+    path = require('path');
 
-gulp.task('watch', ['connect'], function() {
-  gulp.watch('{lib,test}/**/*.{coffee,js}', [
-    'compile', 'test', 'reload'
-    ], function(e) {
+  console.log(karma)
+
+gulp.task('watch', ['connect', 'tdd'], function() {
+  gulp.watch('{src,test}/**/*.{coffee,js}', [
+    'compile', 'reload'], function(e) {
       console.log(e.path + ' changed.');
   });
   gulp.watch(['test/index.html', 'src/**/*'], ['reload']);
@@ -16,12 +20,26 @@ gulp.task('watch', ['connect'], function() {
 gulp.task('compile', function() {
   return gulp.src('./src/**/*.coffee')
       .pipe(coffee({bare: true}).on('error', function(err) {throw err}))
-      .pipe(gulp.dest('./src'));
+      .pipe(gulp.dest('./lib'));
 });
 
-gulp.task('test', ['compile'], function() {
-  return gulp.src('./test/**/*.js', {read: false})
-    .pipe(mocha({ui: 'tdd', bail: true}));
+// gulp.task('test', ['compile'], function() {
+//   return gulp.src('./test/**/*.js', {read: false})
+//     .pipe(mocha({ui: 'tdd', bail: true}));  
+// });
+
+gulp.task('test', function() {
+  karma.start({
+    configFile: path.join(process.cwd(), 'test/karma.conf.js')
+  }, process.exit);
+});
+
+gulp.task('tdd', function() {
+  karma.start({
+    configFile: path.join(process.cwd(), 'test/karma.conf.js'),
+    singleRun: false,
+    browsers: ['Chrome']
+  }, process.exit);
 });
 
 gulp.task('connect', function() {
@@ -36,9 +54,9 @@ gulp.task('reload', function() {
 });
 
 gulp.task('build', ['test'], function() {
-  return gulp.src('lib/legato.js')
+  return gulp.src('lib/groove.js')
     .pipe(uglify({mangle: false}))
-    .pipe(gulp.dest('lib/legato.min.js'));
+    .pipe(gulp.dest('lib/groove.min.js'));
 })
 
 gulp.task('default', ['connect']);
